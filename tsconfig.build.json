@@ -2,8 +2,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "declaration": true,
-    "noEmit": false
+    "declaration": false,
+    "noEmit": false,
+    "removeComments": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
   "exclude": ["node_modules", "test", "dist", "**/*.spec.ts", "src/types/global.d.ts"]
 }

@@ -14,6 +14,7 @@ coverage
 /node_modules
 /build
 /tmp
+*.tsbuildinfo
 
 # Logs
 logs
