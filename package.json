@@ -8,6 +8,7 @@
     "preinstall": "node -e \"require('fs').mkdirSync('data', { recursive: true })\"",
     "postinstall": "node scripts/postinstall.js",
     "start": "nest start",
+    "start:prod": "node dist/main.js",
     "start:dev": "nest start --watch",
     "build": "nest build",
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",

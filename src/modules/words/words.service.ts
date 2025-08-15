@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
+import * as readline from 'node:readline';
+import { Readable } from 'node:stream';
 import { Repository } from 'typeorm';
 
 import { WordEntity } from './word.entity';
@@ -21,21 +23,23 @@ export class WordsService {
       return;
     }
 
-    // Fetch word list (dwyl/english-words) raw JSON word list.
-    // We avoid bundling their list; download on first access.
-    const url = 'https://raw.githubusercontent.com/dwyl/english-words/master/words_dictionary.json';
+    // Fetch word list as a stream to minimize memory usage.
+    // Use dwyl/english-words words_alpha.txt (one word per line) and filter to 5 letters.
+    const url = 'https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt';
     try {
-      const resp = await axios.get<Record<string, number>>(url, { timeout: 30000 });
-      const dict = resp.data ?? {};
-      const all = Object.keys(dict)
-        .filter((w) => /^[a-z]{5}$/.test(w))
-        .map((w) => w.toLowerCase());
+      const resp = await axios.get<Readable>(url, { timeout: 60000, responseType: 'stream' });
+      const rl = readline.createInterface({
+        input: resp.data as unknown as Readable,
+        crlfDelay: Infinity,
+      });
 
-      // Insert in chunks to avoid SQLITE_MAX_VARIABLE_NUMBER limit
+      const batchWords: string[] = [];
       const chunkSize = 120; // 6 cols/row -> 720 params < 999
-      for (let i = 0; i < all.length; i += chunkSize) {
-        const slice = all.slice(i, i + chunkSize);
-        const batch: WordEntity[] = slice.map((w) => ({
+      let total = 0;
+
+      const flush = async () => {
+        if (batchWords.length === 0) return;
+        const batch: WordEntity[] = batchWords.map((w) => ({
           id: undefined as unknown as number,
           word: w,
           first: w[0],
@@ -44,6 +48,7 @@ export class WordsService {
           fourth: w[3],
           fifth: w[4],
         }));
+        batchWords.length = 0;
         await this.repo
           .createQueryBuilder()
           .insert()
@@ -51,8 +56,21 @@ export class WordsService {
           .values(batch)
           .orIgnore()
           .execute();
+      };
+
+      for await (const line of rl) {
+        const w = String(line).trim().toLowerCase();
+        if (/^[a-z]{5}$/.test(w)) {
+          batchWords.push(w);
+          total++;
+          if (batchWords.length >= chunkSize) {
+            // eslint-disable-next-line no-await-in-loop
+            await flush();
+          }
+        }
       }
-      this.logger.log(`Loaded ${all.length} words`);
+      await flush();
+      this.logger.log(`Loaded ${total} words`);
       this.isLoaded = true;
     } catch (e) {
       this.logger.error('Failed to load words', e as Error);
