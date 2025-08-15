@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wordle Solver</title>
+    <meta name="color-scheme" content="light dark" />
+    <style>
+      :root {
+        --bg: #0b1020;
+        --bg-elev: #0f1530;
+        --card: rgba(255, 255, 255, 0.06);
+        --card-border: rgba(255, 255, 255, 0.12);
+        --text: #e8ebff;
+        --muted: #a6add3;
+        --accent: #7c5cff;
+        --accent-2: #20c997;
+        --btn-bg: #12183a;
+        --btn-border: rgba(255, 255, 255, 0.14);
+        --tile-border: #2a335f;
+        --shadow: 0 12px 36px rgba(0, 0, 0, 0.42);
+
+        --color-correct: #6aaa64; /* HIT */
+        --color-present: #c9b458; /* BITE */
+        --color-absent: #3a3f53; /* ABSENT */
+
+        --radius-lg: 16px;
+        --radius-md: 12px;
+        --radius-sm: 10px;
+        --focus: 0 0 0 3px rgba(124, 92, 255, 0.25), 0 0 0 1px var(--accent);
+      }
+      html[data-theme='light'] {
+        --bg: #f6f7fb;
+        --bg-elev: #ffffff;
+        --card: #ffffff;
+        --card-border: rgba(0, 0, 0, 0.08);
+        --text: #0b1020;
+        --muted: #55607a;
+        --accent: #5b3df6;
+        --accent-2: #0ca678;
+        --btn-bg: #f0f2f9;
+        --btn-border: rgba(0, 0, 0, 0.08);
+        --tile-border: #d9def4;
+        --shadow: 0 12px 28px rgba(20, 28, 58, 0.12);
+        --color-absent: #b7bfd6;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          Helvetica,
+          Arial,
+          Apple Color Emoji,
+          Segoe UI Emoji;
+        color: var(--text);
+        background:
+          radial-gradient(1400px 800px at -10% -10%, rgba(124, 92, 255, 0.22), transparent),
+          radial-gradient(1200px 700px at 110% 10%, rgba(32, 201, 151, 0.18), transparent),
+          radial-gradient(900px 600px at 50% 120%, rgba(91, 61, 246, 0.16), transparent), var(--bg);
+        background-attachment: fixed;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: saturate(1.1) blur(10px);
+        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.06), transparent);
+        border-bottom: 1px solid var(--card-border);
+      }
+      .container {
+        width: min(1100px, 94vw);
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
+      }
+      .brand .mark {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: conic-gradient(
+          from 180deg at 50% 50%,
+          var(--accent),
+          var(--accent-2),
+          var(--accent)
+        );
+        box-shadow: 0 8px 22px rgba(124, 92, 255, 0.35);
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .chip {
+        font-size: 12px;
+        color: var(--muted);
+        border: 1px solid var(--card-border);
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--btn-bg);
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--btn-border);
+        background: var(--btn-bg);
+        color: var(--text);
+        cursor: pointer;
+        transition:
+          transform 0.06s ease,
+          filter 0.12s ease,
+          background 0.2s ease;
+      }
+      .btn:hover {
+        filter: brightness(1.04);
+      }
+      .btn:active {
+        transform: translateY(1px);
+      }
+      .btn.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        border-color: transparent;
+        color: #fff;
+        box-shadow: 0 6px 18px rgba(124, 92, 255, 0.35);
+      }
+      .btn.ghost {
+        background: transparent;
+      }
+      .btn.small {
+        padding: 8px 10px;
+        border-radius: 8px;
+      }
+
+      main.container {
+        padding-top: 28px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+      }
+      @media (min-width: 920px) {
+        .grid {
+          grid-template-columns: 1.4fr 0.8fr;
+        }
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow);
+        padding: 16px;
+        backdrop-filter: saturate(1.1) blur(6px);
+      }
+      .card h2 {
+        margin: 0 0 8px;
+        font-size: 1.1rem;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .rows {
+        display: grid;
+        gap: 10px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(5, 58px);
+        gap: 10px;
+      }
+      @media (max-width: 420px) {
+        .tiles {
+          grid-template-columns: repeat(5, 48px);
+          gap: 8px;
+        }
+      }
+
+      .tile {
+        width: 58px;
+        height: 58px;
+        border-radius: var(--radius-sm);
+        border: 2px solid var(--tile-border);
+        background: var(--bg-elev);
+        color: var(--text);
+        text-align: center;
+        font-weight: 800;
+        font-size: 1.5rem;
+        text-transform: uppercase;
+        outline: none;
+        caret-color: transparent;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          transform 0.05s ease,
+          color 0.15s ease;
+        box-shadow: inset 0 -2px 0 rgba(255, 255, 255, 0.04);
+      }
+      @media (max-width: 420px) {
+        .tile {
+          width: 48px;
+          height: 48px;
+          font-size: 1.3rem;
+        }
+      }
+      .tile[data-state='HIT'] {
+        background: var(--color-correct);
+        border-color: var(--color-correct);
+        color: #fff;
+      }
+      .tile[data-state='BITE'] {
+        background: var(--color-present);
+        border-color: var(--color-present);
+        color: #000;
+      }
+      .tile[data-state='ABSENT'] {
+        background: var(--color-absent);
+        border-color: var(--color-absent);
+        color: #fff;
+      }
+      .tile:focus {
+        border-color: var(--accent);
+        box-shadow: var(--focus);
+      }
+
+      /* micro-interactions */
+      @keyframes pop {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.06);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes bump {
+        0% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-2px);
+        }
+        100% {
+          transform: translateY(0);
+        }
+      }
+      .tile.pop {
+        animation: pop 120ms ease-out;
+      }
+      .tile.bump {
+        animation: bump 120ms ease-out;
+      }
+
+      .legend {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .swatch {
+        width: 14px;
+        height: 14px;
+        display: inline-block;
+        border-radius: 4px;
+        margin-right: 6px;
+        vertical-align: -2px;
+      }
+
+      .suggest-word {
+        font-size: clamp(24px, 5vw, 40px);
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      .muted {
+        color: var(--muted);
+      }
+      .center {
+        text-align: center;
+      }
+      .between {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .row-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .divider {
+        height: 1px;
+        background: var(--card-border);
+        margin: 12px 0;
+        border: none;
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-elev);
+        color: var(--text);
+        border: 1px solid var(--card-border);
+        padding: 10px 14px;
+        border-radius: 10px;
+        box-shadow: var(--shadow);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+      .toast.show {
+        opacity: 1;
+      }
+
+      .status-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--card-border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+        display: none;
+      }
+      .spinner.show {
+        display: inline-block;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      footer {
+        margin: 24px auto 40px;
+        width: min(1100px, 94vw);
+        color: var(--muted);
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="container nav">
+        <div class="brand">
+          <div class="mark" aria-hidden="true"></div>
+          <div>Wordle Solver</div>
+        </div>
+        <div class="toolbar">
+          <span id="word-count" class="chip" title="Word list size">loading…</span>
+          <button id="theme-toggle" class="btn small" aria-label="テーマ切替" title="テーマ切替">
+            🌗
+          </button>
+          <a class="btn small ghost" href="https://github.com/" target="_blank" rel="noreferrer"
+            >GitHub</a
+          >
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="grid">
+        <section class="card" aria-label="guesses">
+          <div class="between">
+            <h2>入力</h2>
+            <div class="row-actions">
+              <button id="add" class="btn small">+ 行を追加</button>
+              <button id="remove" class="btn small" title="最後の行を削除">− 行を削除</button>
+              <button id="reset" class="btn small ghost" title="全てクリア">リセット</button>
+            </div>
+          </div>
+          <p class="sub">
+            各タイルに1文字入力し、タイルをタップして状態を
+            <strong>ABSENT → BITE → HIT</strong> の順に切り替えます。
+          </p>
+          <div id="app" class="rows"></div>
+          <hr class="divider" />
+          <div class="between">
+            <div class="right">
+              <button id="solve-and-use" class="btn primary" title="提案して次行に入力">
+                提案して次行に入力
+              </button>
+              <div class="status-wrap">
+                <span id="spinner" class="spinner" aria-hidden="true"></span>
+                <div id="status" class="muted mono" aria-live="polite"></div>
+              </div>
+            </div>
+          </div>
+          <div class="legend" style="margin-top: 10px">
+            <span
+              ><i class="swatch" style="background: var(--color-correct)"></i
+              >HIT(位置も文字も正しい)</span
+            >
+            <span
+              ><i class="swatch" style="background: var(--color-present)"></i
+              >BITE(文字のみ含む)</span
+            >
+            <span
+              ><i class="swatch" style="background: var(--color-absent)"></i
+              >ABSENT(含まれない)</span
+            >
+          </div>
+        </section>
+
+        <aside class="card" aria-label="suggestion">
+          <div class="between">
+            <h2>提案</h2>
+            <div class="right">
+              <button id="use-suggestion" class="btn small" title="提案を次の行に入力">使う</button>
+              <button id="copy-suggestion" class="btn small" title="クリップボードにコピー">
+                コピー
+              </button>
+            </div>
+          </div>
+          <div class="center" style="margin: 10px 0 6px">
+            <div id="suggest-word" class="suggest-word">—</div>
+            <div id="suggest-meta" class="muted mono" style="margin-top: 6px">entropy: —</div>
+          </div>
+          <hr class="divider" />
+          <p class="sub">単語リストを初回読み込み中の間は少し時間がかかることがあります。</p>
+        </aside>
+      </div>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script>
+      const app = document.getElementById('app');
+      const addBtn = document.getElementById('add');
+      const removeBtn = document.getElementById('remove');
+      const resetBtn = document.getElementById('reset');
+      const status = document.getElementById('status');
+      const wordCount = document.getElementById('word-count');
+      const suggestWord = document.getElementById('suggest-word');
+      const suggestMeta = document.getElementById('suggest-meta');
+      const useSuggestionBtn = document.getElementById('use-suggestion');
+      const copySuggestionBtn = document.getElementById('copy-suggestion');
+      const solveAndUseBtn = document.getElementById('solve-and-use');
+      const toast = document.getElementById('toast');
+      const themeToggle = document.getElementById('theme-toggle');
+      const spinner = document.getElementById('spinner');
+
+      const cycle = { ABSENT: 'BITE', BITE: 'HIT', HIT: 'ABSENT' };
+
+      function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 1600);
+      }
+
+      function animate(el, cls) {
+        try {
+          el.classList.remove(cls);
+          // reflow to restart animation
+          void el.offsetWidth; // eslint-disable-line no-unused-expressions
+          el.classList.add(cls);
+        } catch (_) {}
+      }
+
+      function createRow() {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const tiles = document.createElement('div');
+        tiles.className = 'tiles';
+        row.appendChild(tiles);
+
+        for (let i = 0; i < 5; i++) {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.maxLength = 1;
+          input.autocomplete = 'off';
+          input.autocapitalize = 'off';
+          input.spellcheck = false;
+          input.inputMode = 'text';
+          input.setAttribute('inputmode', 'text');
+          input.setAttribute('autocorrect', 'off');
+          input.className = 'tile';
+          input.dataset.state = 'ABSENT';
+          input.dataset.index = String(i);
+          tiles.appendChild(input);
+
+          // toggle state on click
+          input.addEventListener('click', () => {
+            if ((input.value || '').length === 0) return; // no state if empty
+            input.dataset.state = cycle[input.dataset.state] || 'ABSENT';
+            animate(input, 'bump');
+          });
+
+          // Normalize letter and auto-advance
+          let composing = false;
+          const update = () => {
+            const ch = (input.value || '')
+              .normalize('NFKC')
+              .replace(/[^a-zA-Z]/g, '')
+              .slice(0, 1)
+              .toUpperCase();
+            input.value = ch;
+            if (!ch) input.dataset.state = 'ABSENT';
+          };
+          input.addEventListener('compositionstart', () => (composing = true));
+          input.addEventListener('compositionend', (e) => {
+            composing = false;
+            input.value = (e.data || input.value || '')
+              .normalize('NFKC')
+              .replace(/[^a-zA-Z]/g, '')
+              .slice(0, 1)
+              .toUpperCase();
+            if (input.value) input.dataset.state = input.dataset.state || 'ABSENT';
+            const next = tiles.querySelector(`.tile[data-index="${i + 1}"]`);
+            if (next) next.focus();
+            animate(input, 'pop');
+            persist();
+          });
+          input.addEventListener('input', (e) => {
+            if (e.isComposing || composing) return;
+            update();
+            if ((input.value || '').length === 1) {
+              const next = tiles.querySelector(`.tile[data-index="${i + 1}"]`);
+              if (next) next.focus();
+            }
+            if ((input.value || '').length === 1) animate(input, 'pop');
+            persist();
+          });
+          input.addEventListener('keydown', (e) => {
+            const key = e.key;
+            if (key === 'Backspace') {
+              if ((input.value || '').length === 0) {
+                const prev = tiles.querySelector(`.tile[data-index="${i - 1}"]`);
+                if (prev) {
+                  e.preventDefault();
+                  prev.value = '';
+                  prev.dataset.state = 'ABSENT';
+                  prev.focus();
+                  prev.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+              }
+            } else if (key === 'ArrowLeft') {
+              const prev = tiles.querySelector(`.tile[data-index="${i - 1}"]`);
+              if (prev) {
+                e.preventDefault();
+                prev.focus();
+              }
+            } else if (key === 'ArrowRight') {
+              const next = tiles.querySelector(`.tile[data-index="${i + 1}"]`);
+              if (next) {
+                e.preventDefault();
+                next.focus();
+              }
+            }
+          });
+          input.addEventListener('paste', (e) => {
+            const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+            if (text && text.length > 1) {
+              e.preventDefault();
+              const letters = text
+                .normalize('NFKC')
+                .replace(/[^a-zA-Z]/g, '')
+                .slice(0, 5 - i)
+                .toUpperCase();
+              for (let k = 0; k < letters.length; k++) {
+                const target = tiles.querySelector(`.tile[data-index="${i + k}"]`);
+                if (!target) break;
+                target.value = letters[k];
+                target.dataset.state = target.dataset.state || 'ABSENT';
+                target.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              const endIndex = Math.min(i + letters.length, 4);
+              const endInput = tiles.querySelector(`.tile[data-index="${endIndex}"]`);
+              if (endInput) endInput.focus();
+              persist();
+            }
+          });
+
+          // cleanup animation classes
+          input.addEventListener('animationend', () => {
+            input.classList.remove('pop');
+            input.classList.remove('bump');
+          });
+        }
+
+        return row;
+      }
+
+      function addRow(focusFirst = true, preset) {
+        const row = createRow();
+        app.appendChild(row);
+        if (preset && /^[A-Za-z]{5}$/.test(preset)) {
+          const tiles = row.querySelectorAll('.tile');
+          preset
+            .toUpperCase()
+            .split('')
+            .forEach((ch, idx) => {
+              const t = tiles[idx];
+              t.value = ch;
+              t.dataset.state = 'ABSENT';
+            });
+        }
+        if (focusFirst) row.querySelector('.tile[data-index="0"]').focus();
+        persist();
+      }
+
+      function removeRow() {
+        const rows = app.querySelectorAll('.row');
+        if (rows.length > 0) {
+          rows[rows.length - 1].remove();
+          persist();
+        }
+      }
+
+      function resetAll() {
+        app.innerHTML = '';
+        addRow(true);
+        setSuggestion(null);
+        persist();
+      }
+
+      function collectGuesses() {
+        const rows = [...app.querySelectorAll('.row')];
+        const guesses = [];
+        for (const row of rows) {
+          const tiles = [...row.querySelectorAll('.tile')];
+          const letters = tiles.map((t) => (t.value || '').toLowerCase());
+          const word = letters.join('');
+          if (!word || letters.some((c) => c.length !== 1 || !/[a-z]/.test(c))) continue;
+          if (!/^[a-z]{5}$/.test(word)) continue;
+          const results = tiles.map((t, i) => ({
+            letter: word[i],
+            result: t.dataset.state || 'ABSENT',
+          }));
+          guesses.push({ word, results });
+        }
+        return guesses;
+      }
+
+      async function solve() {
+        const guesses = collectGuesses();
+        suggestWord.textContent = '…';
+        suggestMeta.textContent = 'entropy: …';
+        status.textContent = '計算中…';
+        spinner.classList.add('show');
+        try {
+          const resp = await fetch('/solve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ guesses }),
+          });
+          const data = await resp.json();
+          if (data.word) {
+            setSuggestion({ word: data.word, entropy: data.entropy });
+            status.textContent = '';
+            spinner.classList.remove('show');
+            return { word: data.word, entropy: data.entropy };
+          } else {
+            setSuggestion(null);
+            showToast(data.message || '候補がありません');
+            status.textContent = '';
+            spinner.classList.remove('show');
+            return null;
+          }
+        } catch (e) {
+          status.textContent = 'エラーが発生しました';
+          spinner.classList.remove('show');
+          return null;
+        }
+      }
+
+      function setSuggestion(s) {
+        if (!s) {
+          suggestWord.textContent = '—';
+          suggestMeta.textContent = 'entropy: —';
+          return;
+        }
+        suggestWord.textContent = (s.word || '').toUpperCase();
+        const ent = typeof s.entropy === 'number' ? s.entropy.toFixed(3) : '—';
+        suggestMeta.textContent = `entropy: ${ent}`;
+      }
+
+      function persist() {
+        const rows = [...app.querySelectorAll('.row')].map((row) =>
+          [...row.querySelectorAll('.tile')].map((t) => ({
+            v: t.value || '',
+            s: t.dataset.state || 'ABSENT',
+          })),
+        );
+        localStorage.setItem('ws-rows', JSON.stringify(rows));
+      }
+      function restore() {
+        const raw = localStorage.getItem('ws-rows');
+        if (!raw) return false;
+        try {
+          const rows = JSON.parse(raw);
+          if (!Array.isArray(rows)) return false;
+          app.innerHTML = '';
+          for (const r of rows) {
+            const row = createRow();
+            const tiles = row.querySelectorAll('.tile');
+            (r || []).slice(0, 5).forEach((t, i) => {
+              tiles[i].value = (t && t.v ? String(t.v) : '').toUpperCase();
+              tiles[i].dataset.state = (t && t.s) || 'ABSENT';
+            });
+            app.appendChild(row);
+          }
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
+
+      async function ensureWordsLoaded() {
+        try {
+          const c = await fetch('/words/count').then((r) => r.json());
+          if (typeof c.count === 'number' && c.count > 0) {
+            wordCount.textContent = `${c.count.toLocaleString()} words`;
+            return;
+          }
+        } catch (_) {}
+        // try load
+        wordCount.textContent = 'loading…';
+        try {
+          await fetch('/words/load').then((r) => r.json());
+          // poll count after load
+          const c2 = await fetch('/words/count').then((r) => r.json());
+          wordCount.textContent = `${(c2.count || 0).toLocaleString()} words`;
+        } catch (_) {
+          wordCount.textContent = 'not loaded';
+        }
+      }
+
+      function useSuggestion() {
+        const w = suggestWord.textContent || '';
+        if (!/^[A-Z]{5}$/.test(w)) return;
+        addRow(true, w);
+        showToast('提案を入力しました');
+      }
+
+      async function copySuggestion() {
+        const w = suggestWord.textContent || '';
+        if (!/^[A-Z]{5}$/.test(w)) return;
+        try {
+          await navigator.clipboard.writeText(w);
+          showToast('コピーしました');
+        } catch (_) {
+          showToast('コピーに失敗しました');
+        }
+      }
+
+      function toggleTheme() {
+        const html = document.documentElement;
+        const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+        html.setAttribute('data-theme', next);
+        localStorage.setItem('ws-theme', next);
+        updateThemeToggleIcon();
+      }
+      function restoreTheme() {
+        const t = localStorage.getItem('ws-theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+        updateThemeToggleIcon();
+      }
+
+      function updateThemeToggleIcon() {
+        const theme = document.documentElement.getAttribute('data-theme') || 'light';
+        if (themeToggle) themeToggle.textContent = theme === 'light' ? '🌙' : '🌞';
+      }
+
+      addBtn.addEventListener('click', () => addRow(true));
+      removeBtn.addEventListener('click', removeRow);
+      resetBtn.addEventListener('click', resetAll);
+      useSuggestionBtn.addEventListener('click', useSuggestion);
+      copySuggestionBtn.addEventListener('click', copySuggestion);
+      solveAndUseBtn.addEventListener('click', async () => {
+        const s = await solve();
+        if (s && s.word) {
+          useSuggestion();
+        }
+      });
+      themeToggle.addEventListener('click', toggleTheme);
+
+      window.addEventListener('DOMContentLoaded', async () => {
+        restoreTheme();
+        const restored = restore();
+        if (!restored) addRow(true);
+        ensureWordsLoaded();
+        // Enter to solve when focusing a tile
+        window.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            const active = document.activeElement;
+            if (active && active.classList && active.classList.contains('tile')) {
+              solveAndUseBtn.click();
+            }
+          }
+        });
+      });
+    </script>
+    <footer>
+      <span>© 2025 Wordle Solver</span>
+      <span class="mono muted">Made with ♡</span>
+    </footer>
+  </body>
+</html>

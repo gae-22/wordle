@@ -1,0 +1,50 @@
+{
+  "name": "wordle-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Wordle solving assistant (NestJS + SQLite)",
+  "license": "MIT",
+  "scripts": {
+    "preinstall": "node -e \"require('fs').mkdirSync('data', { recursive: true })\"",
+    "postinstall": "node scripts/postinstall.js",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "build": "nest build",
+    "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/config": "^3.2.3",
+    "@nestjs/core": "^10.0.0",
+    "@nestjs/platform-express": "^10.0.0",
+    "@nestjs/serve-static": "^4.0.2",
+    "@nestjs/typeorm": "^10.0.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "sqlite3": "^5.1.7",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.5",
+    "@nestjs/schematics": "^10.1.3",
+    "@nestjs/testing": "^10.0.0",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.30",
+    "@typescript-eslint/eslint-plugin": "^8.7.0",
+    "@typescript-eslint/parser": "^8.7.0",
+    "eslint": "^9.11.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-prettier": "^5.1.3",
+    "eslint-plugin-simple-import-sort": "^12.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  }
+}
